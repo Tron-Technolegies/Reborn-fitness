@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-yellow: yellow;
+  --color-brand-yellow-hover: #e5c004;
+  --color-brand-yellow-light: #fffbeb;
+  --color-brand-black: #000000;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+.menu {
+  @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100;
+}
+
+.input {
+  border: 1px solid #00000014;
+  border-radius: 8px;
+  padding: 6px 12px;
+}
