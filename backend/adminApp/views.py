@@ -266,10 +266,16 @@ def get_item_by_code(request, code):
 @csrf_exempt
 @transaction.atomic
 def create_rental_order(request):
-    if request.method == "POST":
+    if request.method != "POST":
+        return JsonResponse(
+            {"error": "POST method required"},
+            status=405
+        )
+
+    try:
         data = json.loads(request.body)
 
-        # 🔹 Get or create customer
+        # Get or create customer
         customer, _ = Customer.objects.get_or_create(
             phone=data.get("phone"),
             defaults={
@@ -279,155 +285,352 @@ def create_rental_order(request):
         )
 
         items_data = data.get("items", [])
-        if not items_data:
-            # Backward compatibility
-            if data.get("item_id"):
-                items_data = [{"product_id": data.get("item_id"), "unit_id": data.get("unit_id")}]
-            else:
-                return JsonResponse({"error": "No items provided"}, status=400)
 
+        # Backward compatibility
+        if not items_data:
+            if data.get("item_id"):
+                items_data = [{
+                    "product_id": data.get("item_id"),
+                    "unit_id": data.get("unit_id"),
+                    "quantity": 1
+                }]
+            else:
+                return JsonResponse(
+                    {"error": "No items provided"},
+                    status=400
+                )
+
+        # Validate products and quantities
         for item_data in items_data:
             try:
-                product = Product.objects.get(id=item_data.get("product_id"))
+                product = Product.objects.get(
+                    id=item_data.get("product_id")
+                )
             except Product.DoesNotExist:
-                return JsonResponse({"error": "Product not found"}, status=404)
-            if not product.is_available and not item_data.get('unit_id'):
-                return JsonResponse({"error": f"Product {product.name} not available"}, status=400)
+                return JsonResponse(
+                    {"error": "Product not found"},
+                    status=404
+                )
 
-        try:
-            r_date = data.get("rental_date")
-            ret_date = data.get("return_date")
-            if isinstance(r_date, str): r_date = datetime.strptime(r_date, '%Y-%m-%d').date()
-            if isinstance(ret_date, str): ret_date = datetime.strptime(ret_date, '%Y-%m-%d').date()
+            quantity = int(item_data.get("quantity", 1))
 
-            # 🔹 Coupon Logic
-            coupon_id = data.get("coupon_id")
-            coupon = None
-            discount_amount = Decimal("0")
-            if coupon_id:
-                try:
-                    coupon = Coupon.objects.get(id=coupon_id)
-                    is_valid, msg = coupon.is_valid(data.get("rental_amount"))
-                    if is_valid:
-                        discount_amount = coupon.calculate_discount(data.get("rental_amount"))
-                        coupon.used_count += 1
-                        coupon.save()
-                except Coupon.DoesNotExist:
-                    pass
+            if quantity < 1:
+                return JsonResponse(
+                    {"error": f"Invalid quantity for {product.name}"},
+                    status=400
+                )
 
-            # Decide status based on rental date:
-            today = date.today()
-            if r_date > today:
-                status = 'PRE_BOOKED'
-                booking_type = 'PRE_BOOKING'
+            # If a specific unit is provided,
+            # this is a single-unit booking.
+            if item_data.get("unit_id"):
+                quantity = 1
+
+            # Check available stock before creating booking
             else:
-                booking_type = data.get('booking_type', 'IMMEDIATE')
-                status = 'PRE_BOOKED' if booking_type == 'PRE_BOOKING' else 'ACTIVE'
-            
-            booking = RentalBooking.objects.create(
-                customer=customer,
-                rental_date=r_date,
-                return_date=ret_date,
-                booking_type=booking_type,
-                status=status,
-                rental_amount=Decimal(str(data.get("rental_amount", 0))),
-                discount_amount=discount_amount,
-                coupon=coupon,
-                security_deposit=Decimal(str(data.get("security_deposit", 0))),
-                collected_at=timezone.now() if status == 'ACTIVE' else None
+                available_count = PhysicalUnit.objects.filter(
+                    product=product,
+                    status="available"
+                ).count()
+
+                if available_count < quantity:
+                    return JsonResponse(
+                        {
+                            "error": (
+                                f"Only {available_count} unit(s) "
+                                f"available for {product.name}. "
+                                f"You requested {quantity}."
+                            )
+                        },
+                        status=400
+                    )
+
+        # Rental dates
+        r_date = data.get("rental_date")
+        ret_date = data.get("return_date")
+
+        if isinstance(r_date, str):
+            r_date = datetime.strptime(
+                r_date,
+                "%Y-%m-%d"
+            ).date()
+
+        if isinstance(ret_date, str):
+            ret_date = datetime.strptime(
+                ret_date,
+                "%Y-%m-%d"
+            ).date()
+
+        # Coupon Logic
+        coupon_id = data.get("coupon_id")
+        coupon = None
+        discount_amount = Decimal("0")
+
+        if coupon_id:
+            try:
+                coupon = Coupon.objects.get(id=coupon_id)
+
+                is_valid, msg = coupon.is_valid(
+                    data.get("rental_amount")
+                )
+
+                if is_valid:
+                    discount_amount = coupon.calculate_discount(
+                        data.get("rental_amount")
+                    )
+
+                    coupon.used_count += 1
+                    coupon.save()
+
+            except Coupon.DoesNotExist:
+                pass
+
+        # Decide status based on rental date
+        today = date.today()
+
+        if r_date > today:
+            status = "PRE_BOOKED"
+            booking_type = "PRE_BOOKING"
+        else:
+            booking_type = data.get(
+                "booking_type",
+                "IMMEDIATE"
             )
 
-            
-            # Handle payments array
-            payments_data = data.get('payments', [])
-            if not payments_data and data.get("advance_paid"):
+            status = (
+                "PRE_BOOKED"
+                if booking_type == "PRE_BOOKING"
+                else "ACTIVE"
+            )
+
+        # Create booking
+        booking = RentalBooking.objects.create(
+            customer=customer,
+            rental_date=r_date,
+            return_date=ret_date,
+            booking_type=booking_type,
+            status=status,
+            rental_amount=Decimal(
+                str(data.get("rental_amount", 0))
+            ),
+            discount_amount=discount_amount,
+            coupon=coupon,
+            security_deposit=Decimal(
+                str(data.get("security_deposit", 0))
+            ),
+            collected_at=(
+                timezone.now()
+                if status == "ACTIVE"
+                else None
+            )
+        )
+
+        # Handle payments
+        payments_data = data.get("payments", [])
+
+        if not payments_data:
+            sale_amount = Decimal(
+                str(data.get("rental_amount", 0))
+            )
+
+            if sale_amount > 0:
                 payments_data = [{
-                    "amount": float(data.get("advance_paid")),
-                    "method": data.get("payment_method", "CASH"),
-                    "reference": data.get("payment_reference", "")
-                }]
-            for p in payments_data:
-                amt = float(p.get('amount', 0))
-                if amt > 0:
-                    Payment.objects.create(
-                        amount=amt,
-                        payment_method=p.get('method', 'CASH'),
-                        payment_type='INCOME',
-                        transaction_reference=p.get('reference', ''),
-                        rental_booking=booking
+                    "amount": sale_amount,
+                    "method": data.get(
+                        "payment_method",
+                        "CASH"
+                    ),
+                    "reference": data.get(
+                        "payment_reference",
+                        ""
                     )
-            
-            # Record Security Deposit Collection if any
-            if booking.security_deposit > 0:
+                }]
+
+        for p in payments_data:
+            amt = Decimal(str(p.get("amount", 0)))
+
+            if amt > 0:
                 Payment.objects.create(
-                    amount=booking.security_deposit,
-                    payment_method=payments_data[0].get('method', 'CASH') if payments_data else 'CASH',
-                    payment_type='INCOME',
-                    expense_category='deposit',
-                    notes=f"Security deposit collected for Booking #{booking.id}",
+                    amount=amt,
+                    payment_method=p.get(
+                        "method",
+                        "CASH"
+                    ),
+                    payment_type="INCOME",
+                    transaction_reference=p.get(
+                        "reference",
+                        ""
+                    ),
                     rental_booking=booking
                 )
 
-            for item_data in items_data:
-                product = Product.objects.get(id=item_data.get("product_id"))
-                unit_id = item_data.get("unit_id")
-                if unit_id:
-                    unit = PhysicalUnit.objects.select_for_update().get(id=unit_id)
-                else:
-                    unit = PhysicalUnit.objects.select_for_update().filter(product=product, status='available').first()
-                if not unit:
-                    raise Exception(f"No available unit for {product.name}")
-                # Overlap validation for both IMMEDIATE and PRE_BOOKING
-                overlapping_bookings = RentalBooking.objects.filter(
-                    items__unit=unit,
-                    status__in=['PRE_BOOKED', 'READY_FOR_PICKUP', 'ACTIVE'],
-                    rental_date__lte=ret_date,
-                    return_date__gte=r_date
+        # Security deposit
+        if booking.security_deposit > 0:
+            Payment.objects.create(
+                amount=booking.security_deposit,
+                payment_method=(
+                    payments_data[0].get(
+                        "method",
+                        "CASH"
+                    )
+                    if payments_data
+                    else "CASH"
+                ),
+                payment_type="INCOME",
+                expense_category="deposit",
+                notes=(
+                    f"Security deposit collected "
+                    f"for Booking #{booking.id}"
+                ),
+                rental_booking=booking
+            )
+
+        # Create rental items based on quantity
+        for item_data in items_data:
+
+            product = Product.objects.get(
+                id=item_data.get("product_id")
+            )
+
+            unit_id = item_data.get("unit_id")
+            quantity = int(
+                item_data.get("quantity", 1)
+            )
+
+            # Specific physical unit
+            if unit_id:
+                unit = (
+                    PhysicalUnit.objects
+                    .select_for_update()
+                    .get(id=unit_id)
                 )
+
+                units = [unit]
+
+            # Product + quantity
+            else:
+                units = list(
+                    PhysicalUnit.objects
+                    .select_for_update()
+                    .filter(
+                        product=product,
+                        status="available"
+                    )[:quantity]
+                )
+
+                if len(units) < quantity:
+                    raise Exception(
+                        f"Only {len(units)} unit(s) available "
+                        f"for {product.name}. "
+                        f"You requested {quantity}."
+                    )
+
+            for unit in units:
+
+                # Check overlapping bookings
+                overlapping_bookings = (
+                    RentalBooking.objects.filter(
+                        items__unit=unit,
+                        status__in=[
+                            "PRE_BOOKED",
+                            "READY_FOR_PICKUP",
+                            "ACTIVE"
+                        ],
+                        rental_date__lte=ret_date,
+                        return_date__gte=r_date
+                    )
+                )
+
                 if overlapping_bookings.exists():
-                    raise Exception(f"Unit {unit.unit_id} for {product.name} is not available for the selected dates.")
-                
-                # If immediate booking, ensure it's technically available now
-                if booking_type == 'IMMEDIATE' and unit.status != 'available':
-                    raise Exception(f"Selected unit for {product.name} is currently not available for immediate pickup")
-                
-                RentalItem.objects.create(booking=booking, product=product, unit=unit)
-                
-                # Only update unit status to rented if it's an immediate active booking
-                if status == 'ACTIVE':
-                    unit.status = 'rented'
-                    unit.save()
+                    raise Exception(
+                        f"Unit {unit.unit_id} for "
+                        f"{product.name} is not available "
+                        f"for the selected dates."
+                    )
 
-            
+                # Immediate booking must have available unit
+                if (
+                    booking_type == "IMMEDIATE"
+                    and unit.status != "available"
+                ):
+                    raise Exception(
+                        f"Selected unit for {product.name} "
+                        f"is currently not available "
+                        f"for immediate pickup."
+                    )
 
-            alterations_data = data.get('alterations', [])
-            for alt_data in alterations_data:
-                product = Product.objects.get(id=alt_data['product_id'])
-                exp_date_str = alt_data.get('expected_completion_date')
-                exp_date = datetime.strptime(exp_date_str, '%Y-%m-%d').date() if exp_date_str else None
-                
-                alt_type = None
-                if alt_data.get('alteration_type_id'):
-                    alt_type = AlterationType.objects.get(id=alt_data['alteration_type_id'])
-                
-                Alteration.objects.create(
+                # One RentalItem = one physical unit
+                RentalItem.objects.create(
                     booking=booking,
                     product=product,
-                    alteration_type=alt_type,
-                    alteration_area=alt_data.get('alteration_area'),
-                    restore_after_return=alt_data.get('restore_after_return', False),
-                    notes=alt_data.get('notes', ''),
-                    expected_completion_date=exp_date,
-                    status='PENDING'
+                    unit=unit
                 )
-            # Payment is already handled on a cash basis via the payments loop above.
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
+
+                # Mark unit as rented
+                if status == "ACTIVE":
+                    unit.status = "rented"
+                    unit.save()
+
+        # Alterations
+        alterations_data = data.get(
+            "alterations",
+            []
+        )
+
+        for alt_data in alterations_data:
+
+            product = Product.objects.get(
+                id=alt_data["product_id"]
+            )
+
+            exp_date_str = alt_data.get(
+                "expected_completion_date"
+            )
+
+            exp_date = (
+                datetime.strptime(
+                    exp_date_str,
+                    "%Y-%m-%d"
+                ).date()
+                if exp_date_str
+                else None
+            )
+
+            alt_type = None
+
+            if alt_data.get("alteration_type_id"):
+                alt_type = AlterationType.objects.get(
+                    id=alt_data["alteration_type_id"]
+                )
+
+            Alteration.objects.create(
+                booking=booking,
+                product=product,
+                alteration_type=alt_type,
+                alteration_area=alt_data.get(
+                    "alteration_area"
+                ),
+                restore_after_return=alt_data.get(
+                    "restore_after_return",
+                    False
+                ),
+                notes=alt_data.get(
+                    "notes",
+                    ""
+                ),
+                expected_completion_date=exp_date,
+                status="PENDING"
+            )
 
         return JsonResponse({
             "message": "Order created",
             "order_id": booking.id
         })
+
+    except Exception as e:
+        return JsonResponse(
+            {"error": str(e)},
+            status=400
+        )
 
 
 def get_all_rental_orders(request):
