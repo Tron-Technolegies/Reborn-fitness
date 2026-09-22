@@ -32,7 +32,9 @@
       {
         "from": "frontend/dist",
         "to": "frontend",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "backend/dist/perfectfit-server.exe",
@@ -43,10 +45,12 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
-      "icon": "electron/assets/icon.ico"
+      "icon": "electron/assets/reborn.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -62,7 +66,7 @@
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^39.2.6",
-    "electron-builder": "^26.8.1",
+    "electron-builder": "^26.15.3",
     "wait-on": "^9.0.3"
   }
 }
