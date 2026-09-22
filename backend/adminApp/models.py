@@ -283,7 +283,7 @@ class Material(models.Model):
     description = models.TextField()
     image = models.ImageField(upload_to='materials/', blank=True, null=True)
     price_per_meter = models.DecimalField(max_digits=10, decimal_places=2)
-    colour = models.CharField(max_length=50)
+    colour = models.CharField(max_length=50, blank=True, default="")
     total_stock = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     available_stock = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 

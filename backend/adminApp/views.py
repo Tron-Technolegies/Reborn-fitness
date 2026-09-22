@@ -37,80 +37,90 @@ import json
 
 @csrf_exempt
 def create_rental_item(request):
-    if request.method == "POST":
-
-        #  Handle BOTH JSON & form-data
-        if request.content_type == "application/json":
-            data = json.loads(request.body)
-            image = None
-        else:
-            data = request.POST
-            image = request.FILES.get("image")
-
-        try:
-            category = Category.objects.get(id=data.get("category_id"))
-        except Category.DoesNotExist:
-            return JsonResponse({"error": "Invalid category"}, status=400)
-
-        item = Product.objects.create(
-            name=data.get("name"),
-            category=category,
-            colour=data.get("colour"),
-            description=data.get("description"),
-            rental_price=data.get("rental_price"),
-            image=image  
+    if request.method != "POST":
+        return JsonResponse(
+            {"error": "POST method required"},
+            status=405
         )
-        
-        # Create units with sizes
-        # Support either a simple count or a list of units with sizes
-        stock_data = data.get("stock_data") 
-        
-        # If it's a string (from FormData), parse it
-        if stock_data and isinstance(stock_data, str):
-            try:
-                stock_data = json.loads(stock_data)
-            except:
-                pass
 
-        # If it's still not found or not a list, check request.POST directly (QueryDict issue)
-        if not stock_data or not isinstance(stock_data, list):
-            raw_stock = request.POST.get("stock_data")
-            if raw_stock:
-                try:
-                    stock_data = json.loads(raw_stock)
-                except:
-                    pass
+    # Handle JSON and FormData
+    if request.content_type == "application/json":
+        data = json.loads(request.body)
+        image = None
+    else:
+        data = request.POST
+        image = request.FILES.get("image")
 
-        if stock_data and isinstance(stock_data, list):
-            unit_index = 1
-            for group in stock_data:
-                size = group.get("size") or "Free Size"
-                qty = int(group.get("qty", 1))
-                for _ in range(qty):
-                    PhysicalUnit.objects.create(
-                        product=item,
-                        unit_id=f'{item.code}-{str(unit_index).zfill(2)}',
-                        size=size,
-                        status='available'
-                    )
-                    unit_index += 1
-        else:
-            qty = int(data.get("total_stock", 1))
-            size = data.get("size") or "Free Size"
-            for i in range(qty):
+    try:
+        category = Category.objects.get(
+            id=data.get("category_id")
+        )
+    except Category.DoesNotExist:
+        return JsonResponse(
+            {"error": "Invalid category"},
+            status=400
+        )
+
+    item = Product.objects.create(
+        name=data.get("name"),
+        category=category,
+        colour=data.get("colour", ""),
+        description=data.get("description"),
+        rental_price=data.get("rental_price"),
+        image=image
+    )
+
+    # Stock quantity
+    stock_data = data.get("stock_data")
+
+    # FormData sends stock_data as a JSON string
+    if stock_data and isinstance(stock_data, str):
+        try:
+            stock_data = json.loads(stock_data)
+        except (json.JSONDecodeError, TypeError):
+            stock_data = None
+
+    # Create physical units
+    if isinstance(stock_data, list) and stock_data:
+
+        unit_index = 1
+
+        for group in stock_data:
+            size = group.get("size") or "Free Size"
+            qty = int(group.get("qty", 1))
+
+            if qty < 1:
+                continue
+
+            for _ in range(qty):
                 PhysicalUnit.objects.create(
                     product=item,
-                    unit_id=f'{item.code}-{str(i+1).zfill(2)}',
+                    unit_id=f"{item.code}-{str(unit_index).zfill(2)}",
                     size=size,
-                    status='available'
+                    status="available"
                 )
 
-        return JsonResponse({
-            "message": "Item created",
-            "id": item.id,
-            "code": item.code,
-            "image_url": item.image.url if item.image else None
-        })
+                unit_index += 1
+
+    else:
+        # Fallback: simple total_stock
+        qty = int(data.get("total_stock", 1))
+        size = data.get("size") or "Free Size"
+
+        for i in range(qty):
+            PhysicalUnit.objects.create(
+                product=item,
+                unit_id=f"{item.code}-{str(i + 1).zfill(2)}",
+                size=size,
+                status="available"
+            )
+
+    return JsonResponse({
+        "message": "Item created",
+        "id": item.id,
+        "code": item.code,
+        "image_url": item.image.url if item.image else None
+    })
 
 #  GET ALL
 def get_all_rental_items(request):
@@ -176,55 +186,185 @@ from .models import Product, Category
 from django.http import JsonResponse
 import json
 
+
 @csrf_exempt
 def update_rental_item(request, item_id):
-    if request.method == "PUT":
+    if request.method != "PUT":
+        return JsonResponse(
+            {"error": "Invalid request method"},
+            status=405
+        )
 
-        # Handle both JSON & form-data
-        if request.content_type == "application/json":
-            data = json.loads(request.body)
-            image = None
-        else:
-            data = request.POST
-            image = request.FILES.get("image")
+    # Handle both JSON & form-data
+    if request.content_type == "application/json":
+        data = json.loads(request.body)
+        image = None
+    else:
+        data = request.POST
+        image = request.FILES.get("image")
+
+    try:
+        item = Product.objects.get(id=item_id)
+    except Product.DoesNotExist:
+        return JsonResponse(
+            {"error": "Item not found"},
+            status=404
+        )
+
+    # Update basic fields
+    item.name = data.get("name", item.name)
+    item.colour = data.get("colour", item.colour)
+    item.description = data.get(
+        "description",
+        item.description
+    )
+    item.rental_price = data.get(
+        "rental_price",
+        item.rental_price
+    )
+
+    # Update image if provided
+    if image:
+        item.image = image
+
+    # Update category
+    if "category_id" in data:
+        try:
+            category = Category.objects.get(
+                id=data.get("category_id")
+            )
+            item.category = category
+        except Category.DoesNotExist:
+            return JsonResponse(
+                {"error": "Invalid category"},
+                status=400
+            )
+
+    # --------------------------------------------------
+    # UPDATE STOCK QUANTITY
+    # --------------------------------------------------
+
+    if "total_stock" in data:
 
         try:
-            item = Product.objects.get(id=item_id)
-        except Product.DoesNotExist:
-            return JsonResponse({"error": "Item not found"}, status=404)
+            requested_stock = int(data.get("total_stock"))
+        except (TypeError, ValueError):
+            return JsonResponse(
+                {"error": "Invalid stock quantity"},
+                status=400
+            )
 
-        # Update fields
-        item.name = data.get("name", item.name)
-        # item.size moved to PhysicalUnit
-        item.colour = data.get("colour", item.colour)
-        item.description = data.get("description", item.description)
-        item.rental_price = data.get("rental_price", item.rental_price)
-        # item.total_stock is now a property
-        # item.available_stock is now a property
-        # item.condition moved to PhysicalUnit
+        if requested_stock < 0:
+            return JsonResponse(
+                {"error": "Stock quantity cannot be negative"},
+                status=400
+            )
 
-        # Update image if provided
-        if image:
-            item.image = image
+        units = PhysicalUnit.objects.filter(
+            product=item
+        )
 
-        # Update category
-        if "category_id" in data:
-            try:
-                category = Category.objects.get(id=data.get("category_id"))
-                item.category = category
-            except Category.DoesNotExist:
-                return JsonResponse({"error": "Invalid category"}, status=400)
+        current_stock = units.count()
 
-        item.save()
+        # Units that cannot be removed automatically
+        unavailable_units = units.exclude(
+            status="available"
+        )
 
-        return JsonResponse({
-            "message": "Item updated successfully",
-            "code": item.code,
-            "image_url": item.image.url if item.image else None
-        })
+        unavailable_count = unavailable_units.count()
 
-    return JsonResponse({"error": "Invalid request method"}, status=405)
-    
+        # We cannot reduce below rented/washing/repair/etc. units
+        if requested_stock < unavailable_count:
+            return JsonResponse(
+                {
+                    "error": (
+                        f"Cannot reduce stock to {requested_stock}. "
+                        f"{unavailable_count} unit(s) are currently "
+                        f"not available."
+                    )
+                },
+                status=400
+            )
+
+        # Increase stock
+        if requested_stock > current_stock:
+
+            units_to_add = requested_stock - current_stock
+
+            available_units = units.filter(
+                status="available"
+            )
+
+            # Find the next unit number
+            existing_numbers = []
+
+            for unit in units:
+                try:
+                    number = int(
+                        unit.unit_id.rsplit("-", 1)[1]
+                    )
+                    existing_numbers.append(number)
+                except (ValueError, IndexError):
+                    pass
+
+            next_number = (
+                max(existing_numbers) + 1
+                if existing_numbers
+                else 1
+            )
+
+            for _ in range(units_to_add):
+                PhysicalUnit.objects.create(
+                    product=item,
+                    unit_id=(
+                        f"{item.code}-"
+                        f"{str(next_number).zfill(2)}"
+                    ),
+                    size="Free Size",
+                    status="available"
+                )
+
+                next_number += 1
+
+        # Reduce stock
+        elif requested_stock < current_stock:
+
+            units_to_remove = current_stock - requested_stock
+
+            removable_units = list(
+                units.filter(
+                    status="available"
+                ).order_by("-id")[:units_to_remove]
+            )
+
+            if len(removable_units) < units_to_remove:
+                return JsonResponse(
+                    {
+                        "error": (
+                            "Not enough available units "
+                            "to reduce stock."
+                        )
+                    },
+                    status=400
+                )
+
+            for unit in removable_units:
+                unit.delete()
+
+    item.save()
+
+    return JsonResponse({
+        "message": "Item updated successfully",
+        "code": item.code,
+        "total_stock": item.total_stock,
+        "available_stock": item.available_stock,
+        "image_url": (
+            item.image.url
+            if item.image
+            else None
+        )
+    })
+
 # DELETE
 @csrf_exempt
 def delete_rental_item(request, item_id):
