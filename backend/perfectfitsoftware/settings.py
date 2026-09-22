@@ -17,16 +17,20 @@ IS_FROZEN = getattr(sys, 'frozen', False)
 # persists across updates, never deleted on reinstall.
 # On first install: the seed db.sqlite3 bundled in the exe is copied there.
 if IS_FROZEN:
-    APP_DATA_DIR = Path(os.environ.get('APPDATA', '')) / 'PerfectFit'
+    APP_DATA_DIR = Path(os.environ.get('APPDATA', '')) / 'RebornFitness'
+    OLD_APP_DATA_DIR = Path(os.environ.get('APPDATA', '')) / 'PerfectFit'
     APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
     DB_PATH = APP_DATA_DIR / 'db.sqlite3'
     MEDIA_ROOT = str(APP_DATA_DIR / 'media')
 
-    # First-run: copy bundled seed DB if none exists yet
+    # First-run: copy from old directory if exists, otherwise bundled seed DB
     if not DB_PATH.exists():
         import shutil
+        old_db = OLD_APP_DATA_DIR / 'db.sqlite3'
         seed_db = Path(sys._MEIPASS) / 'db.sqlite3'
-        if seed_db.exists():
+        if old_db.exists():
+            shutil.copy(str(old_db), str(DB_PATH))
+        elif seed_db.exists():
             shutil.copy(str(seed_db), str(DB_PATH))
 else:
     DB_PATH = BASE_DIR / 'db.sqlite3'

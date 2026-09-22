@@ -1,13 +1,13 @@
 @echo off
 REM ====================================================================
-REM  Perfect Fit v1.0.4  –  Master Build Script
-REM  Run this from the project root: D:\Tron-Projects\Perfect-Fit\
+REM  Reborn Fitness v1.1.1  –  Master Build Script
+REM  Run this from the project root: PerfectFit-Software
 REM
 REM  What it does:
 REM    1. Install Python build tools (waitress + pyinstaller)
 REM    2. Bundle Django backend → backend\dist\perfectfit-server.exe
 REM    3. Build React frontend  → frontend\dist\
-REM    4. Package everything    → electron\releases\Perfect Fit Setup 1.1.1.exe
+REM    4. Package everything    → electron\releases\RebornFitness Setup 1.1.1.exe
 REM
 REM  Requirements:
 REM    - `py` (Python Windows Launcher) in PATH
@@ -91,6 +91,6 @@ if %ERRORLEVEL% NEQ 0 (
 echo.
 echo ====================================================================
 echo  BUILD COMPLETE!
-echo  Installer: electron\releases\Perfect Fit Setup 1.1.1.exe
+echo  Installer: electron\releases\RebornFitness Setup 1.1.1.exe
 echo ====================================================================
 echo.

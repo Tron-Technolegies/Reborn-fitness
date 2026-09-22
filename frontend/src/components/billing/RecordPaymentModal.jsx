@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { FiX } from "react-icons/fi";
-import axios from "axios";
+import api from "../../api/backendApi";
 
 export default function RecordPaymentModal({ module, moduleId, dueAmount, onClose, onSave }) {
   const [method, setMethod] = useState("CASH");
@@ -18,7 +18,7 @@ export default function RecordPaymentModal({ module, moduleId, dueAmount, onClos
     if (!amount || Number(amount) <= 0) return alert("Enter a valid amount");
     setSaving(true);
     try {
-      await axios.post("http://localhost:8000/api/payments/record/", {
+      await api.post("/payments/record/", {
         module: module,
         module_id: moduleId,
         amount: Number(amount),

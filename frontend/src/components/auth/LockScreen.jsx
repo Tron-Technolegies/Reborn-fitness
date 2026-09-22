@@ -49,7 +49,7 @@ export default function LockScreen() {
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-3xl font-black text-black">Perfect Fit</h1>
+          <h1 className="text-3xl font-black text-black">Reborn Fitness</h1>
           <p className="text-gray-500 font-medium">Application Protected</p>
         </div>
 

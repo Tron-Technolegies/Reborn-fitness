@@ -11,11 +11,12 @@ export default function SettingsHeader() {
       </div>
 
       <div className="flex gap-3">
-        <button className="text-blue-500 text-sm">
+        <button className="bg-yellow-500 text-black px-4 py-2 rounded-lg text-sm">
 
-          <p className="text-blue-500">Discard Changes</p>
+
+          <p className="text-black-500">Discard Changes</p>
         </button>
-        <button className="bg-yellow-400-500 text-white px-4 py-2 rounded-lg text-sm">
+        <button className="bg-yellow-500 text-black px-4 py-2 rounded-lg text-sm">
           Save Settings
         </button>
       </div>

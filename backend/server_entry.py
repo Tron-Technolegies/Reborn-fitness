@@ -33,9 +33,9 @@ django.setup()
 # ── Apply migrations (preserves existing data on updates) ─────────────────────
 # This runs every time the server starts.  Django skips migrations that have
 # already been applied, so old records are NEVER touched.
-print("[PerfectFit] Applying database migrations…")
+print("[RebornFitness] Applying database migrations…")
 call_command('migrate', '--run-syncdb', verbosity=0)
-print("[PerfectFit] Migrations done.")
+print("[RebornFitness] Migrations done.")
 
 # ── Start Waitress ────────────────────────────────────────────────────────────
 from waitress import serve
@@ -44,5 +44,5 @@ from perfectfitsoftware.wsgi import application
 HOST = '127.0.0.1'
 PORT = 8765
 
-print(f"[PerfectFit] Server starting on http://{HOST}:{PORT}")
+print(f"[RebornFitness] Server starting on http://{HOST}:{PORT}")
 serve(application, host=HOST, port=PORT, threads=4)

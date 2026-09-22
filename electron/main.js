@@ -59,6 +59,7 @@ function createWindow() {
     height: 800,
     minWidth: 1024,
     minHeight: 680,
+    title: "Reborn Fitness",
     icon: path.join(__dirname, "assets", "icon.ico"),
     webPreferences: {
       nodeIntegration: false,
