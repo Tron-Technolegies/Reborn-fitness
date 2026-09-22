@@ -35,17 +35,17 @@ export default function FinancialStats({ refreshTrigger }) {
       icon: <FiDollarSign />,
       color: data.profit >= 0 ? "bg-yellow-400/20 text-black border border-yellow-400/30" : "bg-red-100 text-red-600",
     },
-    {
-      title: "Cash & Bank Balance",
-      value: formatCurrency(data.profit),
-      sub: "Current liquid assets",
-      icon: <FiDollarSign />,
-      color: "bg-orange-100 text-orange-500",
-    },
+    // {
+    //   title: "Cash & Bank Balance",
+    //   value: formatCurrency(data.profit),
+    //   sub: "Current liquid assets",
+    //   icon: <FiDollarSign />,
+    //   color: "bg-orange-100 text-orange-500",
+    // },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
       {stats.map((s, i) => (
         <div
           key={i}

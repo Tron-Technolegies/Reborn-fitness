@@ -1,33 +1,43 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FiRefreshCw, FiSearch, FiChevronLeft, FiChevronRight, FiMoreVertical, FiEye, FiScissors, FiPackage, FiCheckCircle, FiTrash2 } from "react-icons/fi";
-import ReturnRentalModal from "./ReturnRentalModal";
-import { deleteRentalBooking, pickupRental, returnRental } from "../../api/rentalApi";
+import {
+  FiRefreshCw,
+  FiSearch,
+  FiChevronLeft,
+  FiChevronRight,
+  FiMoreVertical,
+  FiEye,
+} from "react-icons/fi";
 
-export default function RentalTable({ rentals, loading, onRefresh, onNewRentalClick, setToast, onDetailClick, onAlterationClick }) {
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [selectedRental, setSelectedRental] = useState(null);
+export default function RentalTable({
+  rentals,
+  loading,
+  onRefresh,
+  onNewRentalClick,
+  setToast,
+  onDetailClick,
+}) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [openDropdown, setOpenDropdown] = useState(null);
+
   const dropdownRef = useRef(null);
   const itemsPerPage = 10;
 
   useEffect(() => {
     function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target)
+      ) {
         setOpenDropdown(null);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [dropdownRef]);
 
-  const formatDateStr = (dateStr) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  };
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const statusStyle = {
     OVERDUE: "bg-red-100 text-red-500",
@@ -37,97 +47,69 @@ export default function RentalTable({ rentals, loading, onRefresh, onNewRentalCl
     CANCELLED: "bg-red-100 text-red-600",
   };
 
-  // Filter Logic
-  const filteredRentals = (rentals || []).filter(r => {
-    const matchesSearch = r.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.order_code?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    if (!matchesSearch) return false;
-
-    if (activeTab === "Active Orders" || activeTab === "On Rental") {
-      return (r.status === "ACTIVE" || r.status === "OVERDUE") && !r.is_returned;
-    }
-    if (activeTab === "Upcoming") {
-      return r.status === "PRE_BOOKED";
-    }
-    if (activeTab === "Returned") {
-      return r.status === "RETURNED" || r.is_returned;
-    }
-    return true; // "All"
+  // Search Logic
+  const filteredRentals = (rentals || []).filter((r) => {
+    return (
+      r.customer_name
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      r.order_code
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase())
+    );
   });
 
   // Pagination Logic
-  const totalPages = Math.ceil(filteredRentals.length / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredRentals.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(
+    filteredRentals.length / itemsPerPage
+  );
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const indexOfLastItem =
+    currentPage * itemsPerPage;
 
-  const handleDelete = async (r) => {
-    if (window.confirm(`Are you sure you want to delete Booking ${r.order_code}? This action cannot be undone.`)) {
-      try {
-        await deleteRentalBooking(r.id);
-        setToast({ message: "Booking deleted successfully.", type: "success" });
-        onRefresh();
-      } catch (err) {
-        setToast({ message: "Failed to delete booking.", type: "error" });
-      }
-    }
-    setOpenDropdown(null);
-  };
+  const indexOfFirstItem =
+    indexOfLastItem - itemsPerPage;
 
-  const handlePickup = async (r) => {
-    if (window.confirm("Mark this pre-booking as collected?")) {
-      try {
-        await pickupRental(r.id);
-        setToast({ message: "Rental activated.", type: "success" });
-        onRefresh();
-      } catch (err) {
-        setToast({ message: "Failed to activate rental.", type: "error" });
-      }
-    }
-    setOpenDropdown(null);
-  };
+  const currentItems = filteredRentals.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+
+  const paginate = (pageNumber) =>
+    setCurrentPage(pageNumber);
 
   return (
     <div className="bg-white rounded-xl border border-[#00000014] overflow-visible">
-      {/* TABS */}
-      <div className="flex border-b border-[#00000014] px-4 bg-gray-50/50">
-        {["All", "Active Orders", "Upcoming", "Returned"].map((tab) => {
-          const isActive = activeTab === tab;
-          return (
-            <button
-              key={tab}
-              onClick={() => { setActiveTab(tab); setCurrentPage(1); }}
-              className={`px-4 py-3 text-xs font-bold border-b-2 transition-all outline-none ${isActive
-                ? "border-yellow-400 text-black font-extrabold"
-                : "border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-200"
-                }`}
-            >
-              {tab}
-            </button>
-          );
-        })}
-      </div>
+
       {/* TOP BAR */}
       <div className="flex flex-col md:flex-row justify-between gap-3 p-4 border-b border-[#00000014]">
         <div className="flex items-center gap-3 w-full md:max-w-md">
           <div className="relative w-full">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+
             <input
               placeholder="Search by customer/member, order ID..."
               value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               className="border border-[#00000014] pl-10 pr-4 py-2 rounded-lg w-full outline-none text-sm focus:border-yellow-400 transition-all"
             />
           </div>
+
           <button
             onClick={onRefresh}
             className="p-2 hover:bg-gray-100 rounded-lg transition shrink-0"
             title="Refresh"
           >
-            <FiRefreshCw className={loading ? "animate-spin text-black" : "text-gray-400"} />
+            <FiRefreshCw
+              className={
+                loading
+                  ? "animate-spin text-black"
+                  : "text-gray-400"
+              }
+            />
           </button>
         </div>
 
@@ -143,7 +125,8 @@ export default function RentalTable({ rentals, loading, onRefresh, onNewRentalCl
 
       {/* TABLE */}
       <div className="overflow-x-auto min-h-[300px]">
-        {loading && (!rentals || rentals.length === 0) ? (
+        {loading &&
+          (!rentals || rentals.length === 0) ? (
           <div className="p-10 text-center text-gray-400 text-sm flex flex-col items-center gap-2">
             <FiRefreshCw className="animate-spin text-black text-xl" />
             Loading sales & orders...
@@ -152,69 +135,119 @@ export default function RentalTable({ rentals, loading, onRefresh, onNewRentalCl
           <table className="w-full text-sm">
             <thead className="text-gray-400 bg-gray-50/50 border-b border-[#00000014]">
               <tr>
-                <th className="text-left p-4 font-bold text-[10px] uppercase tracking-wider">ORDER ID</th>
-                <th className="text-left p-4 font-bold text-[10px] uppercase tracking-wider">CUSTOMER / MEMBER</th>
-                <th className="text-center p-4 font-bold text-[10px] uppercase tracking-wider">PRODUCTS</th>
-                <th className="text-center p-4 font-bold text-[10px] uppercase tracking-wider">ALTS</th>
-                <th className="text-left p-4 font-bold text-[10px] uppercase tracking-wider">STATUS</th>
-                <th className="text-left p-4 font-bold text-[10px] uppercase tracking-wider">PICKUP</th>
-                <th className="text-left p-4 font-bold text-[10px] uppercase tracking-wider">RETURN</th>
-                <th className="text-right p-4 font-bold text-[10px] uppercase tracking-wider pr-6">ACTION</th>
+
+                {/* ORDER ID */}
+                <th className="text-left p-4 font-bold text-[10px] uppercase tracking-wider">
+                  ORDER ID
+                </th>
+
+                {/* CUSTOMER */}
+                <th className="text-left p-4 font-bold text-[10px] uppercase tracking-wider">
+                  CUSTOMER / MEMBER
+                </th>
+
+                {/* PRODUCTS */}
+                <th className="text-center p-4 font-bold text-[10px] uppercase tracking-wider">
+                  PRODUCTS
+                </th>
+
+                {/* SALE AMOUNT */}
+                <th className="text-right p-4 font-bold text-[10px] uppercase tracking-wider">
+                  SALE AMOUNT
+                </th>
+
+                {/* STATUS */}
+                <th className="text-left p-4 font-bold text-[10px] uppercase tracking-wider">
+                  STATUS
+                </th>
+
+                {/* ACTION */}
+                <th className="text-right p-4 font-bold text-[10px] uppercase tracking-wider pr-6">
+                  ACTION
+                </th>
+
               </tr>
             </thead>
 
             <tbody className="divide-y divide-[#00000008]">
               {currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="p-10 text-center text-gray-400 italic">No sales or orders found</td>
+                  <td
+                    colSpan="6"
+                    className="p-10 text-center text-gray-400 italic"
+                  >
+                    No sales or orders found
+                  </td>
                 </tr>
               ) : (
                 currentItems.map((r) => {
-                  const itemCount = r.items ? r.items.length : 1;
+                  const itemCount = r.items
+                    ? r.items.length
+                    : 1;
+
                   return (
-                    <tr key={r.id} className="hover:bg-gray-50/50 transition">
+                    <tr
+                      key={r.id}
+                      className="hover:bg-gray-50/50 transition"
+                    >
+
+                      {/* ORDER ID */}
                       <td
                         className="p-4 font-mono text-[11px] text-black font-bold uppercase cursor-pointer hover:underline"
-                        onClick={() => onDetailClick && onDetailClick(r)}
+                        onClick={() =>
+                          onDetailClick &&
+                          onDetailClick(r)
+                        }
                       >
                         {r.order_code}
                       </td>
 
+                      {/* CUSTOMER */}
                       <td className="p-4">
-                        <p className="font-bold text-gray-800">{r.customer_name}</p>
+                        <p className="font-bold text-gray-800">
+                          {r.customer_name}
+                        </p>
                       </td>
 
+                      {/* PRODUCTS */}
                       <td className="p-4 text-center">
-                        <span className="font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-md">{itemCount}</span>
-                      </td>
-
-                      <td className="p-4 text-center">
-                        {r.alterations_count > 0 ? (
-                          <span className="font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md"><FiScissors className="inline mr-1" /> {r.alterations_count}</span>
-                        ) : (
-                          <span className="text-gray-300">-</span>
-                        )}
-                      </td>
-
-                      <td className="p-4">
-                        <span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest ${statusStyle[r.status] || "bg-gray-100 text-gray-500"}`}>
-                          {r.status.replace('_', ' ')}
+                        <span className="font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-md">
+                          {itemCount}
                         </span>
                       </td>
 
-                      <td className="p-4">
-                        <p className="font-bold text-gray-700">{formatDateStr(r.rental_date)}</p>
+                      {/* SALE AMOUNT */}
+                      <td className="p-4 text-right">
+                        <p className="font-bold text-gray-800">
+                          Rs.{" "}
+                          {Number(
+                            r.rental_amount || 0
+                          ).toLocaleString("en-IN")}
+                        </p>
                       </td>
 
+                      {/* STATUS */}
                       <td className="p-4">
-                        <p className="font-bold text-red-500">{formatDateStr(r.return_date)}</p>
+                        <span
+                          className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest ${statusStyle[r.status] ||
+                            "bg-gray-100 text-gray-500"
+                            }`}
+                        >
+                          {r.status?.replace("_", " ")}
+                        </span>
                       </td>
 
+                      {/* ACTION */}
                       <td className="p-4 text-right pr-6 relative">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setOpenDropdown(openDropdown === r.id ? null : r.id);
+
+                            setOpenDropdown(
+                              openDropdown === r.id
+                                ? null
+                                : r.id
+                            );
                           }}
                           className="p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-all"
                         >
@@ -226,48 +259,26 @@ export default function RentalTable({ rentals, loading, onRefresh, onNewRentalCl
                             ref={dropdownRef}
                             className="absolute right-8 top-10 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 text-left py-2 overflow-hidden"
                           >
+
+                            {/* VIEW DETAILS */}
                             <button
-                              onClick={() => { setOpenDropdown(null); onDetailClick(r); }}
+                              onClick={() => {
+                                setOpenDropdown(null);
+
+                                if (onDetailClick) {
+                                  onDetailClick(r);
+                                }
+                              }}
                               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium transition-colors"
                             >
-                              <FiEye className="inline mr-2 mb-0.5" /> View Details
-                            </button>
-                            <button
-                              onClick={() => { setOpenDropdown(null); onAlterationClick && onAlterationClick(r); }}
-                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-purple-600 font-medium transition-colors"
-                            >
-                              <FiScissors className="inline mr-2 mb-0.5" /> Manage Alterations
+                              <FiEye className="inline mr-2 mb-0.5" />
+                              View Details
                             </button>
 
-                            {r.status === 'PRE_BOOKED' && (
-                              <button
-                                onClick={() => handlePickup(r)}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 font-medium transition-colors"
-                              >
-                                <FiPackage className="inline mr-2 mb-0.5" /> Mark as Collected
-                              </button>
-                            )}
-
-                            {((r.status === 'ACTIVE' || r.status === 'OVERDUE') && !r.is_returned) && (
-                              <button
-                                onClick={() => { setOpenDropdown(null); setSelectedRental(r); setShowConfirm(true); }}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-600 font-medium transition-colors"
-                              >
-                                <FiCheckCircle className="inline mr-2 mb-0.5" /> Mark Returned
-                              </button>
-                            )}
-
-                            <div className="h-px bg-gray-100 my-1"></div>
-
-                            <button
-                              onClick={() => handleDelete(r)}
-                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium transition-colors"
-                            >
-                              <FiTrash2 className="inline mr-2 mb-0.5" /> Delete Booking
-                            </button>
                           </div>
                         )}
                       </td>
+
                     </tr>
                   );
                 })
@@ -279,58 +290,62 @@ export default function RentalTable({ rentals, loading, onRefresh, onNewRentalCl
 
       {/* FOOTER / PAGINATION */}
       <div className="flex justify-between items-center p-4 border-t border-[#00000014] bg-gray-50/30 mt-auto">
+
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-          Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredRentals.length)} of {filteredRentals.length} rentals
+          {filteredRentals.length === 0
+            ? "Showing 0 of 0 rentals"
+            : `Showing ${indexOfFirstItem + 1
+            } to ${Math.min(
+              indexOfLastItem,
+              filteredRentals.length
+            )} of ${filteredRentals.length
+            } rentals`}
         </p>
 
         <div className="flex gap-1">
+
           <button
             disabled={currentPage === 1}
-            onClick={() => paginate(currentPage - 1)}
+            onClick={() =>
+              paginate(currentPage - 1)
+            }
             className="p-2 border border-gray-200 rounded-lg hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
             <FiChevronLeft size={16} />
           </button>
 
-          {[...Array(totalPages)].map((_, i) => (
-            <button
-              key={i + 1}
-              onClick={() => paginate(i + 1)}
-              className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${currentPage === i + 1
-                ? 'bg-yellow-400 text-black shadow-sm'
-                : 'text-gray-400 hover:bg-white border border-transparent hover:border-gray-200'
-                }`}
-            >
-              {i + 1}
-            </button>
-          ))}
+          {[...Array(totalPages)].map(
+            (_, i) => (
+              <button
+                key={i + 1}
+                onClick={() =>
+                  paginate(i + 1)
+                }
+                className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${currentPage === i + 1
+                    ? "bg-yellow-400 text-black shadow-sm"
+                    : "text-gray-400 hover:bg-white border border-transparent hover:border-gray-200"
+                  }`}
+              >
+                {i + 1}
+              </button>
+            )
+          )}
 
           <button
-            disabled={currentPage === totalPages || totalPages === 0}
-            onClick={() => paginate(currentPage + 1)}
+            disabled={
+              currentPage === totalPages ||
+              totalPages === 0
+            }
+            onClick={() =>
+              paginate(currentPage + 1)
+            }
             className="p-2 border border-gray-200 rounded-lg hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
             <FiChevronRight size={16} />
           </button>
+
         </div>
       </div>
-
-      {showConfirm && (
-        <ReturnRentalModal
-          rental={selectedRental}
-          onConfirm={(returnParams) => {
-            // Because returnRental takes orderId, data={} we must adapt
-            returnRental(selectedRental.id, returnParams).then(() => {
-              setToast({ message: "Return processed successfully!", type: "success" });
-              onRefresh();
-              setShowConfirm(false);
-            }).catch(err => {
-              setToast({ message: "Failed to process return.", type: "error" });
-            });
-          }}
-          onClose={() => setShowConfirm(false)}
-        />
-      )}
     </div>
   );
 }
