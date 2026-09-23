@@ -60,12 +60,13 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 680,
     title: "Reborn Fitness",
-    icon: path.join(__dirname, "assets", "icon.ico"),
+    icon: path.join(__dirname, "assets", "reborn.ico"),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
     },
   });
+
 
   mainWindow.setMenuBarVisibility(false); // clean desktop-app look
 
