@@ -175,7 +175,7 @@ export default function InventoryDetailsModal({ item, onClose, onEdit }) {
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-green-50 p-3 rounded-xl border border-green-100">
-                  <p className="text-[10px] text-green-600 font-black uppercase mb-1">Rental Price</p>
+                  <p className="text-[10px] text-green-600 font-black uppercase mb-1">Selling Price</p>
                   <p className="text-lg font-black text-green-700 font-mono">₹{item.rental_price}</p>
                 </div>
                 <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
@@ -187,7 +187,7 @@ export default function InventoryDetailsModal({ item, onClose, onEdit }) {
                   <p className="text-lg font-black text-orange-700">{item.available_stock}</p>
                 </div>
                 <div className="bg-purple-50 p-3 rounded-xl border border-purple-100">
-                  <p className="text-[10px] text-purple-600 font-black uppercase mb-1">Times Rented</p>
+                  <p className="text-[10px] text-purple-600 font-black uppercase mb-1">Times Selled</p>
                   <p className="text-lg font-black text-purple-700">{item.times_rented || 0}</p>
                 </div>
               </div>
@@ -196,7 +196,7 @@ export default function InventoryDetailsModal({ item, onClose, onEdit }) {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
             {/* PHYSICAL UNITS SECTION */}
-            <div className="space-y-4">
+            {/* <div className="space-y-4">
               <div className="flex justify-between items-center border-l-4 border-blue-500 pl-4 py-1">
                 <h3 className="text-sm font-black text-gray-800 uppercase tracking-widest">Physical Units (Inventory)</h3>
                 <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-bold uppercase">Tracking Individual IDs</span>
@@ -291,10 +291,10 @@ export default function InventoryDetailsModal({ item, onClose, onEdit }) {
                   ))}
                 </div>
               )}
-            </div>
+            </div> */}
 
             {/* SALES & ORDER HISTORY SECTION */}
-            <div className="space-y-4">
+            {/* <div className="space-y-4">
               <div className="flex justify-between items-center border-l-4 border-yellow-400 pl-4 py-1">
                 <h3 className="text-sm font-black text-gray-800 uppercase tracking-widest">Sales & Order History</h3>
                 <span className="text-[10px] bg-yellow-400/20 text-black px-2 py-0.5 rounded-full font-bold uppercase">Performance</span>
@@ -331,7 +331,7 @@ export default function InventoryDetailsModal({ item, onClose, onEdit }) {
                   ))}
                 </div>
               )}
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
