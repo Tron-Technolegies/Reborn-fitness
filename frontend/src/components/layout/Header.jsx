@@ -6,30 +6,37 @@ import { useAuth } from "../../contexts/AuthContext";
 const Header = () => {
   const location = useLocation();
   const [open, setOpen] = useState(false);
-  const { logout, isPasswordEnabled } = useAuth();
+  const { logout } = useAuth();
 
   const getTitle = () => {
     const path = location.pathname.split("/")[1];
+
     if (!path) return "Dashboard";
+
     return path.charAt(0).toUpperCase() + path.slice(1);
   };
 
   const [currentDate, setCurrentDate] = useState("");
 
   useEffect(() => {
-    const today = new Date().toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric'
+    const today = new Date().toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
     });
+
     setCurrentDate(today);
   }, []);
 
   return (
     <div className="fixed top-0 left-64 right-0 z-30 flex items-center justify-between px-6 py-4 bg-white border-b border-[#00000014]">
+
       {/* LEFT */}
       <div className="flex gap-4 items-center">
-        <h1 className="text-lg font-semibold text-gray-800">{getTitle()}</h1>
+
+        <h1 className="text-lg font-semibold text-gray-800">
+          {getTitle()}
+        </h1>
 
         <div className="border border-[#00000014] h-[20px]" />
 
@@ -37,10 +44,13 @@ const Header = () => {
           <FiMapPin />
           Chavakkad Branch
         </div>
+
       </div>
 
       {/* RIGHT */}
       <div className="flex items-center gap-4">
+
+        {/* DATE */}
         <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
           <FiCalendar className="text-black" />
           {currentDate}
@@ -50,6 +60,8 @@ const Header = () => {
 
         {/* PROFILE */}
         <div className="relative">
+
+          {/* ADMIN BUTTON */}
           <div
             onClick={() => setOpen(!open)}
             className="flex items-center gap-3 p-2 cursor-pointer rounded-lg hover:bg-gray-50"
@@ -57,22 +69,27 @@ const Header = () => {
             <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center text-black font-extrabold shadow-sm border border-black/10">
               A
             </div>
+
             <div>
               <p className="text-sm font-medium">Admin</p>
               <p className="text-xs text-gray-500">Store Admin</p>
             </div>
-            <FiChevronDown />
+
+            <FiChevronDown
+              className={`transition-transform duration-200 ${open ? "rotate-180" : ""
+                }`}
+            />
           </div>
 
-
-          {/* DROPDOWN */}
-          {open && isPasswordEnabled && (
-            <div className="absolute right-0 mt-2 w-40 bg-white border border-[#00000014] rounded-lg shadow-md overflow-hidden">
+          {/* LOGOUT DROPDOWN */}
+          {open && (
+            <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-[#00000014] rounded-lg shadow-md overflow-hidden">
               <button
                 onClick={logout}
-                className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-gray-50 cursor-pointer transition-colors"
+                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-red-600 cursor-pointer transition-colors"
               >
-                <FiLogOut /> Logout
+                <FiLogOut />
+                Logout
               </button>
             </div>
           )}
